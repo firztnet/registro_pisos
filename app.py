@@ -12,14 +12,14 @@ DATE_FORMAT = "%Y-%m-%d"
 app = Flask(__name__)
 app.secret_key = "cambia_esto_por_algo_secreto"  # para mensajes flash
 
-@app.before_first_request
-def startup():
-    init_db()
-
 # --- DB helpers ---
+import psycopg2
+from psycopg2.extras import RealDictCursor
+import os
+
 def connect():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    url = os.environ["DATABASE_URL"]
+    conn = psycopg2.connect(url, sslmode="require", cursor_factory=RealDictCursor)
     return conn
 
 def init_db():
@@ -60,29 +60,29 @@ def index():
     params = []
 
     if direccion:
-        conditions.append("direccion LIKE ?")
+        conditions.append("direccion LIKE %s")
         params.append(f"%{direccion}%")
     if min_precio:
         try:
-            conditions.append("precio >= ?")
+            conditions.append("precio >= %s")
             params.append(float(min_precio))
         except ValueError:
             pass
     if max_precio:
         try:
-            conditions.append("precio <= ?")
+            conditions.append("precio <= %s")
             params.append(float(max_precio))
         except ValueError:
             pass
     if min_sup:
         try:
-            conditions.append("superficie >= ?")
+            conditions.append("superficie >= %s")
             params.append(float(min_sup))
         except ValueError:
             pass
     if max_sup:
         try:
-            conditions.append("superficie <= ?")
+            conditions.append("superficie <= %s")
             params.append(float(max_sup))
         except ValueError:
             pass
@@ -154,7 +154,7 @@ def add():
         with connect() as c:
             c.execute("""
                 INSERT INTO pisos (fecha_visita, direccion, superficie, planta, precio, enlace, observaciones)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
             """, (f, direccion, superficie_f, planta, precio_f, enlace, observaciones))
             c.commit()
         flash("Piso agregado.", "success")
@@ -165,7 +165,7 @@ def add():
 @app.route("/edit/<int:piso_id>", methods=["GET", "POST"])
 def edit(piso_id):
     with connect() as c:
-        piso = c.execute("SELECT * FROM pisos WHERE id=?", (piso_id,)).fetchone()
+        piso = c.execute("SELECT * FROM pisos WHERE id=%s", (piso_id,)).fetchone()
     if not piso:
         flash("Piso no encontrado.", "warning")
         return redirect(url_for("index"))
@@ -203,8 +203,8 @@ def edit(piso_id):
 
         with connect() as c:
             c.execute("""
-                UPDATE pisos SET fecha_visita=?, direccion=?, superficie=?, planta=?, precio=?, enlace=?, observaciones=?
-                WHERE id=?
+                UPDATE pisos SET fecha_visita=%s, direccion=%s, superficie=%s, planta=%s, precio=%s, enlace=%s, observaciones=%s
+                WHERE id=%s
             """, (f, direccion, superficie_f, planta, precio_f, enlace, observaciones, piso_id))
             c.commit()
         flash("Piso actualizado.", "success")
@@ -215,7 +215,7 @@ def edit(piso_id):
 @app.route("/delete/<int:piso_id>", methods=["POST"])
 def delete(piso_id):
     with connect() as c:
-        c.execute("DELETE FROM pisos WHERE id=?", (piso_id,))
+        c.execute("DELETE FROM pisos WHERE id=%s", (piso_id,))
         c.commit()
     flash("Piso eliminado.", "info")
     return redirect(url_for("index"))
@@ -356,7 +356,7 @@ TEMPLATE_INDEX = """
         <td>{{ p.observaciones }}</td>
         <td class="actions">
           <a href="{{ url_for('edit', piso_id=p.id) }}">Editar</a>
-          <form style="display:inline" method="post" action="{{ url_for('delete', piso_id=p.id) }}" onsubmit="return confirm('Eliminar piso?');">
+          <form style="display:inline" method="post" action="{{ url_for('delete', piso_id=p.id) }}" onsubmit="return confirm('Eliminar piso%s');">
             <button class="btn btn-danger" style="padding:4px 8px; font-size:12px;">Borrar</button>
           </form>
         </td>
