@@ -12,6 +12,10 @@ DATE_FORMAT = "%Y-%m-%d"
 app = Flask(__name__)
 app.secret_key = "cambia_esto_por_algo_secreto"  # para mensajes flash
 
+@app.before_first_request
+def startup():
+    init_db()
+
 # --- DB helpers ---
 def connect():
     conn = sqlite3.connect(DB_PATH)
