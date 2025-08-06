@@ -445,13 +445,13 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port)
     
     @app.route("/check")
-def check_db():
-    try:
-        with connect() as conn:
-            with conn.cursor() as c:
+    def check_db():
+        try:
+            with connect() as conn:
+                with conn.cursor() as c:
                 c.execute("SELECT COUNT(*) FROM pisos;")
                 count = c.fetchone()[0]
-        return f"✅ La tabla 'pisos' existe. Total registros: {count}"
-    except Exception as e:
-        return f"❌ Error: {str(e)}"
+            return f"✅ La tabla 'pisos' existe. Total registros: {count}"
+        except Exception as e:
+            return f"❌ Error: {str(e)}"
 
