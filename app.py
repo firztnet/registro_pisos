@@ -443,15 +443,15 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     # levantar en http://localhost:5000
     app.run(host="0.0.0.0", port=port)
-    
-    @app.route("/check")
-    def check_db():
-        try:
-            with connect() as conn:
-                with conn.cursor() as c:
+
+
+@app.route("/check")
+def check_db():
+    try:
+        with connect() as conn:
+            with conn.cursor() as c:
                 c.execute("SELECT COUNT(*) FROM pisos;")
                 count = c.fetchone()[0]
-            return f"✅ La tabla 'pisos' existe. Total registros: {count}"
-        except Exception as e:
-            return f"❌ Error: {str(e)}"
-
+        return f"✅ La tabla 'pisos' existe. Total registros: {count}"
+    except Exception as e:
+        return f"❌ Error: {str(e)}"
