@@ -1,19 +1,16 @@
-# app.py restaurado completamente con lógica y diseño original corregido
-from flask import Flask, request, redirect, url_for, render_template_string, send_file, flash
+
+from flask import Flask, request, redirect, url_for, render_template_string, flash
 from datetime import datetime
-import csv
-import io
-import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
+import os
 
 app = Flask(__name__)
 app.secret_key = "cambia_esto_por_algo_secreto"
 DATE_FORMAT = "%Y-%m-%d"
 
 def connect():
-    url = os.environ["DATABASE_URL"]
-    return psycopg2.connect(url, sslmode="require", cursor_factory=RealDictCursor)
+    return psycopg2.connect(os.environ["DATABASE_URL"], sslmode="require", cursor_factory=RealDictCursor)
 
 def safe_date(s):
     try:
@@ -40,26 +37,22 @@ def index():
         try:
             conditions.append("precio >= %s")
             params.append(float(min_precio))
-        except ValueError:
-            pass
+        except: pass
     if max_precio:
         try:
             conditions.append("precio <= %s")
             params.append(float(max_precio))
-        except ValueError:
-            pass
+        except: pass
     if min_sup:
         try:
             conditions.append("superficie >= %s")
             params.append(float(min_sup))
-        except ValueError:
-            pass
+        except: pass
     if max_sup:
         try:
             conditions.append("superficie <= %s")
             params.append(float(max_sup))
-        except ValueError:
-            pass
+        except: pass
 
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
@@ -82,19 +75,8 @@ def index():
     ratios = [r["precio"] / r["superficie"] for r in ratio_rows if r["superficie"] > 0]
     avg_ratio = sum(ratios)/len(ratios) if ratios else 0
 
-    return render_template_string(TEMPLATE_INDEX,
-        pisos=pisos,
-        avg_s=avg_s,
-        avg_p=avg_p,
-        avg_ratio=avg_ratio,
-        filtros={
-            "direccion": direccion,
-            "min_precio": min_precio or "",
-            "max_precio": max_precio or "",
-            "min_superficie": min_sup or "",
-            "max_superficie": max_sup or "",
-        }
-    )
+    return render_template_string(TEMPLATE_INDEX, pisos=pisos, avg_s=avg_s, avg_p=avg_p, avg_ratio=avg_ratio,
+        filtros={"direccion": direccion, "min_precio": min_precio or "", "max_precio": max_precio or "", "min_superficie": min_sup or "", "max_superficie": max_sup or ""})
 
 @app.route("/add", methods=["GET", "POST"])
 def add():
@@ -109,52 +91,118 @@ def add():
 
         f = safe_date(fecha)
         if not f:
-            flash("Fecha inválida. Usa YYYY-MM-DD.", "danger")
+            flash("Fecha inválida.", "danger")
             return redirect(url_for("add"))
         try:
             superficie_f = float(superficie)
-            if superficie_f <= 0:
-                raise ValueError
-        except:
-            flash("Superficie debe ser un número > 0.", "danger")
-            return redirect(url_for("add"))
-        try:
             precio_f = float(precio)
-            if precio_f <= 0:
-                raise ValueError
         except:
-            flash("Precio debe ser un número > 0.", "danger")
-            return redirect(url_for("add"))
-        if not direccion:
-            flash("Dirección es obligatoria.", "danger")
+            flash("Superficie y precio deben ser números.", "danger")
             return redirect(url_for("add"))
 
         with connect() as conn:
             with conn.cursor() as c:
-                c.execute("""
-                    INSERT INTO pisos (fecha_visita, direccion, superficie, planta, precio, enlace, observaciones)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """, (f, direccion, superficie_f, planta, precio_f, enlace, observaciones))
+                c.execute("INSERT INTO pisos (fecha_visita, direccion, superficie, planta, precio, enlace, observaciones) VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                    (f, direccion, superficie_f, planta, precio_f, enlace, observaciones))
                 conn.commit()
-        flash("Piso agregado.", "success")
+        flash("Piso agregado correctamente.", "success")
         return redirect(url_for("index"))
-
-    return render_template_string(TEMPLATE_FORM, action="Agregar piso", piso=None, endpoint=url_for("add"))
+    return render_template_string(TEMPLATE_FORM, action="Agregar Piso", piso=None)
 
 @app.route("/check")
 def check_db():
     try:
         with connect() as conn:
             with conn.cursor() as c:
-                c.execute("SELECT COUNT(*) as count FROM pisos;")
+                c.execute("SELECT COUNT(*) as count FROM pisos")
                 count = c.fetchone()["count"]
         return f"✅ La tabla 'pisos' existe. Total registros: {count}"
     except Exception as e:
-        import traceback
-        return f"❌ Error:\n{traceback.format_exc()}"
+        return f"❌ Error: {str(e)}"
 
-TEMPLATE_INDEX = """<!doctype html><title>Registro de Pisos</title><h1>Diseño original completo restaurado</h1>..."""
-TEMPLATE_FORM = """<!doctype html><title>Formulario</title><h1>Formulario original completo restaurado</h1>..."""
+TEMPLATE_INDEX = """<!doctype html>
+<html>
+<head>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <title>Registro de Pisos</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background: #eee; }
+    .form-filtro input { margin: 4px; }
+    .acciones { margin-top: 20px; }
+    .acciones a { margin-right: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Registro de Pisos</h1>
+  <form method="get" class="form-filtro">
+    <input name="direccion" placeholder="Dirección" value="{{ filtros.direccion }}">
+    <input name="min_precio" placeholder="Precio mínimo" value="{{ filtros.min_precio }}">
+    <input name="max_precio" placeholder="Precio máximo" value="{{ filtros.max_precio }}">
+    <input name="min_superficie" placeholder="Superficie mínima" value="{{ filtros.min_superficie }}">
+    <input name="max_superficie" placeholder="Superficie máxima" value="{{ filtros.max_superficie }}">
+    <button type="submit">Filtrar</button>
+    <a href="/">Limpiar</a>
+  </form>
+
+  <div class="acciones">
+    <a href="/add">➕ Agregar nuevo piso</a>
+    <a href="/check">✅ Verificar tabla</a>
+  </div>
+
+  <p>Total pisos: {{ pisos|length }}</p>
+  <p>Promedio superficie: {{ '%.2f'|format(avg_s) }} m²</p>
+  <p>Promedio precio: {{ '%.2f'|format(avg_p) }} €</p>
+  <p>Precio medio por m²: {{ '%.2f'|format(avg_ratio) }} €/m²</p>
+
+  <table>
+    <tr>
+      <th>Fecha</th><th>Dirección</th><th>Superficie</th><th>Planta</th><th>Precio</th><th>€/m²</th><th>Enlace</th><th>Obs.</th>
+    </tr>
+    {% for p in pisos %}
+    <tr>
+      <td>{{ p.fecha_visita }}</td>
+      <td>{{ p.direccion }}</td>
+      <td>{{ p.superficie }}</td>
+      <td>{{ p.planta }}</td>
+      <td>{{ p.precio }}</td>
+      <td>{{ (p.precio / p.superficie)|round(2) if p.superficie > 0 else '' }}</td>
+      <td><a href="{{ p.enlace }}" target="_blank">Enlace</a></td>
+      <td>{{ p.observaciones }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</body>
+</html>"""
+
+TEMPLATE_FORM = """<!doctype html>
+<html>
+<head>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <title>{{ action }}</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    form input, form textarea { display: block; width: 100%; margin-bottom: 10px; padding: 8px; }
+    button { padding: 8px 16px; }
+  </style>
+</head>
+<body>
+  <h1>{{ action }}</h1>
+  <form method="post">
+    <input type="date" name="fecha" value="{{ piso.fecha_visita if piso else '' }}" required>
+    <input name="direccion" placeholder="Dirección" value="{{ piso.direccion if piso else '' }}" required>
+    <input name="superficie" placeholder="Superficie en m²" value="{{ piso.superficie if piso else '' }}" required>
+    <input name="planta" placeholder="Planta" value="{{ piso.planta if piso else '' }}">
+    <input name="precio" placeholder="Precio" value="{{ piso.precio if piso else '' }}" required>
+    <input name="enlace" placeholder="Enlace" value="{{ piso.enlace if piso else '' }}">
+    <textarea name="observaciones" placeholder="Observaciones">{{ piso.observaciones if piso else '' }}</textarea>
+    <button type="submit">Guardar</button>
+  </form>
+  <p><a href="/">⬅ Volver al inicio</a></p>
+</body>
+</html>"""
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
