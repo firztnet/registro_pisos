@@ -451,7 +451,7 @@ def check_db():
         with connect() as conn:
             with conn.cursor() as c:
                 c.execute("SELECT COUNT(*) FROM pisos;")
-                count = c.fetchone()[0]
+                count = c.fetchone()["count"]
         return f"✅ La tabla 'pisos' existe. Total registros: {count}"
     except Exception as e:
         import traceback
