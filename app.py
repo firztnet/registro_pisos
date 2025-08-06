@@ -1,11 +1,11 @@
 
 from flask import Flask, request, redirect, url_for, render_template_string, send_file, flash
-import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from datetime import datetime
 import csv
 import io
+import os
 
 DB_PATH = "pisos.db"
 DATE_FORMAT = "%Y-%m-%d"
@@ -15,8 +15,7 @@ app.secret_key = "cambia_esto_por_algo_secreto"
 
 def connect():
     url = os.environ["DATABASE_URL"]
-    conn = psycopg2.connect(url, sslmode="require", cursor_factory=RealDictCursor)
-    return conn
+    return psycopg2.connect(url, sslmode="require", cursor_factory=RealDictCursor)
 
 def safe_date(s):
     try:
@@ -86,7 +85,19 @@ def index():
     ratios = [r["precio"] / r["superficie"] for r in ratio_rows if r["superficie"] > 0]
     avg_ratio = sum(ratios)/len(ratios) if ratios else 0
 
-    return render_template_string("App cargada correctamente. Total pisos: {{pisos|length}}", pisos=pisos, avg_s=avg_s, avg_p=avg_p, avg_ratio=avg_ratio, filtros={})
+    return render_template_string(TEMPLATE_INDEX,
+        pisos=pisos,
+        avg_s=avg_s,
+        avg_p=avg_p,
+        avg_ratio=avg_ratio,
+        filtros={
+            "direccion": direccion,
+            "min_precio": min_precio or "",
+            "max_precio": max_precio or "",
+            "min_superficie": min_sup or "",
+            "max_superficie": max_sup or "",
+        }
+    )
 
 @app.route("/check")
 def check_db():
@@ -99,6 +110,37 @@ def check_db():
     except Exception as e:
         import traceback
         return f"❌ Error:\n{traceback.format_exc()}"
+
+TEMPLATE_INDEX = """
+<!doctype html>
+<title>Registro de Pisos</title>
+<h1>Registro de Pisos</h1>
+<a href="{{ url_for('index') }}">Inicio</a> |
+<a href="{{ url_for('check_db') }}">Check DB</a>
+<hr>
+<p>Total pisos: {{ pisos|length }}</p>
+<p>Promedio superficie: {{ "%.2f"|format(avg_s) }} m²</p>
+<p>Promedio precio: {{ "%.2f"|format(avg_p) }} €</p>
+<p>Precio medio por m²: {{ "%.2f"|format(avg_ratio) }} €/m²</p>
+<table border="1" cellpadding="6">
+  <tr>
+    <th>ID</th>
+    <th>Fecha</th>
+    <th>Dirección</th>
+    <th>Superficie</th>
+    <th>Precio</th>
+  </tr>
+  {% for p in pisos %}
+  <tr>
+    <td>{{ p.id }}</td>
+    <td>{{ p.fecha_visita }}</td>
+    <td>{{ p.direccion }}</td>
+    <td>{{ p.superficie }}</td>
+    <td>{{ p.precio }}</td>
+  </tr>
+  {% endfor %}
+</table>
+"""
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
