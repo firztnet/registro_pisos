@@ -92,7 +92,8 @@ def index():
     query += " ORDER BY fecha_visita DESC"
 
     with connect() as c:
-        pisos = c.execute(query, params).fetchall()
+        c.execute(query, params)
+        pisos = c.fetchall()  # ✅ correcto
 
     # estadísticas
     with connect() as c:
