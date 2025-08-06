@@ -454,4 +454,6 @@ def check_db():
                 count = c.fetchone()[0]
         return f"✅ La tabla 'pisos' existe. Total registros: {count}"
     except Exception as e:
-        return f"❌ Error: {str(e)}"
+        import traceback
+        return f"❌ Error:\n{traceback.format_exc()}"
+
