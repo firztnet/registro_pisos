@@ -1,4 +1,3 @@
-
 from flask import Flask, request, redirect, url_for, render_template_string, flash
 from datetime import datetime
 import psycopg2
@@ -81,33 +80,60 @@ def index():
 @app.route("/add", methods=["GET", "POST"])
 def add():
     if request.method == "POST":
-        fecha = request.form.get("fecha", "").strip()
-        direccion = request.form.get("direccion", "").strip()
-        superficie = request.form.get("superficie", "").strip()
-        planta = request.form.get("planta", "").strip()
-        precio = request.form.get("precio", "").strip()
-        enlace = request.form.get("enlace", "").strip()
-        observaciones = request.form.get("observaciones", "").strip()
-
-        f = safe_date(fecha)
-        if not f:
-            flash("Fecha inválida.", "danger")
-            return redirect(url_for("add"))
-        try:
-            superficie_f = float(superficie)
-            precio_f = float(precio)
-        except:
-            flash("Superficie y precio deben ser números.", "danger")
-            return redirect(url_for("add"))
-
-        with connect() as conn:
-            with conn.cursor() as c:
-                c.execute("INSERT INTO pisos (fecha_visita, direccion, superficie, planta, precio, enlace, observaciones) VALUES (%s,%s,%s,%s,%s,%s,%s)",
-                    (f, direccion, superficie_f, planta, precio_f, enlace, observaciones))
-                conn.commit()
-        flash("Piso agregado correctamente.", "success")
-        return redirect(url_for("index"))
+        return guardar_piso()
     return render_template_string(TEMPLATE_FORM, action="Agregar Piso", piso=None)
+
+@app.route("/edit/<int:id>", methods=["GET", "POST"])
+def edit(id):
+    with connect() as conn:
+        with conn.cursor() as c:
+            c.execute("SELECT * FROM pisos WHERE id = %s", (id,))
+            piso = c.fetchone()
+
+    if not piso:
+        flash("Piso no encontrado.", "danger")
+        return redirect(url_for("index"))
+
+    if request.method == "POST":
+        return guardar_piso(id, piso)
+
+    return render_template_string(TEMPLATE_FORM, action="Editar Piso", piso=piso)
+
+def guardar_piso(id=None, piso=None):
+    fecha = request.form.get("fecha", "").strip()
+    direccion = request.form.get("direccion", "").strip()
+    superficie = request.form.get("superficie", "").strip()
+    planta = request.form.get("planta", "").strip()
+    precio = request.form.get("precio", "").strip()
+    enlace = request.form.get("enlace", "").strip()
+    observaciones = request.form.get("observaciones", "").strip()
+
+    f = safe_date(fecha)
+    if not f:
+        flash("Fecha inválida.", "danger")
+        return redirect(url_for("edit", id=id) if id else url_for("add"))
+    try:
+        superficie_f = float(superficie)
+        precio_f = float(precio)
+    except:
+        flash("Superficie y precio deben ser números.", "danger")
+        return redirect(url_for("edit", id=id) if id else url_for("add"))
+
+    with connect() as conn:
+        with conn.cursor() as c:
+            if id:
+                c.execute("""UPDATE pisos
+                             SET fecha_visita=%s, direccion=%s, superficie=%s, planta=%s,
+                                 precio=%s, enlace=%s, observaciones=%s
+                             WHERE id = %s""",
+                          (f, direccion, superficie_f, planta, precio_f, enlace, observaciones, id))
+                flash("Piso actualizado correctamente.", "success")
+            else:
+                c.execute("INSERT INTO pisos (fecha_visita, direccion, superficie, planta, precio, enlace, observaciones) VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                          (f, direccion, superficie_f, planta, precio_f, enlace, observaciones))
+                flash("Piso agregado correctamente.", "success")
+            conn.commit()
+    return redirect(url_for("index"))
 
 @app.route("/check")
 def check_db():
@@ -120,7 +146,8 @@ def check_db():
     except Exception as e:
         return f"❌ Error: {str(e)}"
 
-TEMPLATE_INDEX = """<!doctype html>
+TEMPLATE_INDEX = """
+<!doctype html>
 <html>
 <head>
   <meta name='viewport' content='width=device-width, initial-scale=1.0'>
@@ -159,7 +186,7 @@ TEMPLATE_INDEX = """<!doctype html>
 
   <table>
     <tr>
-      <th>Fecha</th><th>Dirección</th><th>Superficie</th><th>Planta</th><th>Precio</th><th>€/m²</th><th>Enlace</th><th>Obs.</th>
+      <th>Fecha</th><th>Dirección</th><th>Superficie</th><th>Planta</th><th>Precio</th><th>€/m²</th><th>Enlace</th><th>Obs.</th><th>Acción</th>
     </tr>
     {% for p in pisos %}
     <tr>
@@ -171,13 +198,16 @@ TEMPLATE_INDEX = """<!doctype html>
       <td>{{ (p.precio / p.superficie)|round(2) if p.superficie > 0 else '' }}</td>
       <td><a href="{{ p.enlace }}" target="_blank">Enlace</a></td>
       <td>{{ p.observaciones }}</td>
+      <td><a href="/edit/{{ p.id }}">✏️ Editar</a></td>
     </tr>
     {% endfor %}
   </table>
 </body>
-</html>"""
+</html>
+"""
 
-TEMPLATE_FORM = """<!doctype html>
+TEMPLATE_FORM = """
+<!doctype html>
 <html>
 <head>
   <meta name='viewport' content='width=device-width, initial-scale=1.0'>
@@ -202,7 +232,8 @@ TEMPLATE_FORM = """<!doctype html>
   </form>
   <p><a href="/">⬅ Volver al inicio</a></p>
 </body>
-</html>"""
+</html>
+"""
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
