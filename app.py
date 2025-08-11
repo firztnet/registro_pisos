@@ -46,15 +46,15 @@ TEMPLATE_INDEX = """
       <tbody>
         {% for p in pisos %}
         <tr>
-          
-<td class="text-nowrap">
-  <a class="btn btn-sm btn-secondary" href="/edit/{{ p.id }}">Editar</a>
-  <form method="post" action="/delete/{{ p.id }}" style="display:inline"
-        onsubmit="return confirm('¿Seguro que deseas eliminar este registro?');">
-    <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
-  </form>
-</td>
-
+          <td>{{ p.fecha_visita }}</td>
+          <td>{{ p.direccion }}</td>
+          <td>{{ p.superficie }}</td>
+          <td>{{ p.planta }}</td>
+          <td>{{ p.precio }}</td>
+          <td>{{ (p.precio / p.superficie)|round(2) if p.superficie > 0 else '' }}</td>
+          <td><a href="{{ p.enlace }}" target="_blank">Enlace</a></td>
+          <td>{{ p.observaciones }}</td>
+          <td><a href="/edit/{{ p.id }}" class="btn btn-warning btn-sm">✏️ Editar</a></td>
         </tr>
         {% endfor %}
       </tbody>
@@ -206,18 +206,3 @@ def check_db():
 
 if __name__ == "__main__":
     app.run(debug=True)
-
-
-@app.route("/delete/<int:id>", methods=["POST"])
-def delete(id):
-    with connect() as conn:
-        with conn.cursor() as c:
-            c.execute("SELECT 1 FROM pisos WHERE id=%s", (id,))
-            if not c.fetchone():
-                flash("Piso no encontrado.", "danger")
-                return redirect(url_for("index"))
-            c.execute("DELETE FROM pisos WHERE id=%s", (id,))
-            conn.commit()
-            flash("Piso eliminado correctamente.", "success")
-    return redirect(url_for("index"))
-
