@@ -52,9 +52,19 @@ TEMPLATE_INDEX = """
           <td>{{ p.planta }}</td>
           <td>{{ p.precio }}</td>
           <td>{{ (p.precio / p.superficie)|round(2) if p.superficie > 0 else '' }}</td>
-          <td><a href="{{ p.enlace }}" target="_blank">Enlace</a></td>
+          <td>  
+            {% if p.enlace %}
+              <a href="{{ p.enlace }}" target="_blank">Enlace</a>
+            {% else %}—{% endif %}
+          </td>
           <td>{{ p.observaciones }}</td>
-          <td><a href="/edit/{{ p.id }}" class="btn btn-warning btn-sm">✏️ Editar</a></td>
+          <td class="text-nowrap">
+            <a href="/edit/{{ p.id }}" class="btn btn-warning btn-sm">✏️ Editar</a>
+            <form method="post" action="/delete/{{ p.id }}" style="display:inline"
+                  onsubmit="return confirm('¿Seguro que deseas eliminar este registro?');">
+              <button type="submit" class="btn btn-danger btn-sm">🗑️ Eliminar</button>
+            </form>
+          </td>
         </tr>
         {% endfor %}
       </tbody>
@@ -164,6 +174,19 @@ def edit(id):
     if request.method == "POST":
         return guardar_piso(id, piso)
     return render_template_string(TEMPLATE_FORM, action="Editar Piso", piso=piso)
+
+@app.route("/delete/<int:id>", methods=["POST"])
+def delete(id):
+    with connect() as conn:
+        with conn.cursor() as c:
+            c.execute("SELECT 1 FROM pisos WHERE id = %s", (id,))
+            if not c.fetchone():
+                flash("Piso no encontrado.", "danger")
+                return redirect(url_for("index"))
+            c.execute("DELETE FROM pisos WHERE id = %s", (id,))
+            conn.commit()
+            flash("Piso eliminado correctamente.", "success")
+    return redirect(url_for("index"))
 
 def guardar_piso(id=None, piso=None):
     f = safe_date(request.form.get("fecha", "").strip())
