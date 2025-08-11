@@ -1,5 +1,5 @@
 
-from flask import Flask, flash, redirect, render_template_string, request, url_for
+from flask import Flask, request, redirect, url_for, render_template_string, flash
 from datetime import datetime
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -19,15 +19,6 @@ TEMPLATE_INDEX = """
 </head>
 <body class="container mt-4">
   <h1 class="mb-4">Registro de Pisos</h1>
-{% with msgs = get_flashed_messages(with_categories=true) %}
-  {% if msgs %}
-    <div class="mt-2">
-      {% for cat, msg in msgs %}
-        <div class="alert alert-{{ 'success' if cat=='success' else 'danger' }}">{{ msg }}</div>
-      {% endfor %}
-    </div>
-  {% endif %}
-{% endwith %}
   <form method="get" class="row g-2 mb-4">
     <div class="col-md-2"><input class="form-control" name="direccion" placeholder="Dirección" value="{{ filtros.direccion }}"></div>
     <div class="col-md-2"><input class="form-control" name="min_precio" placeholder="Precio mínimo" value="{{ filtros.min_precio }}"></div>
@@ -55,19 +46,15 @@ TEMPLATE_INDEX = """
       <tbody>
         {% for p in pisos %}
         <tr>
-          <td>{{ p.fecha_visita }}</td>
-          <td>{{ p.direccion }}</td>
-          <td>{{ p.superficie }}</td>
-          <td>{{ p.planta }}</td>
-          <td>{{ p.precio }}</td>
-          <td>{{ (p.precio / p.superficie)|round(2) if p.superficie > 0 else '' }}</td>
-          <td>
-  {% if p.enlace %}
-    <a href="{{ p.enlace }}" target="_blank" rel="noopener">Enlace</a>
-  {% else %}—{% endif %}
+          
+<td class="text-nowrap">
+  <a class="btn btn-sm btn-secondary" href="/edit/{{ p.id }}">Editar</a>
+  <form method="post" action="/delete/{{ p.id }}" style="display:inline"
+        onsubmit="return confirm('¿Seguro que deseas eliminar este registro?');">
+    <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+  </form>
 </td>
-          <td>{{ p.observaciones }}</td>
-          <td><a href="/edit/{{ p.id }}" class="btn btn-warning btn-sm">✏️ Editar</a></td>
+
         </tr>
         {% endfor %}
       </tbody>
@@ -87,15 +74,6 @@ TEMPLATE_FORM = """
 </head>
 <body class="container mt-4">
   <h1 class="mb-4">{{ action }}</h1>
-{% with msgs = get_flashed_messages(with_categories=true) %}
-  {% if msgs %}
-    <div class="mt-2">
-      {% for cat, msg in msgs %}
-        <div class="alert alert-{{ 'success' if cat=='success' else 'danger' }}">{{ msg }}</div>
-      {% endfor %}
-    </div>
-  {% endif %}
-{% endwith %}
   <form method="post" class="row g-3">
     <div class="col-md-6"><input type="date" name="fecha" class="form-control" value="{{ piso.fecha_visita if piso else '' }}" required></div>
     <div class="col-md-6"><input name="direccion" placeholder="Dirección" class="form-control" value="{{ piso.direccion if piso else '' }}" required></div>
@@ -104,16 +82,7 @@ TEMPLATE_FORM = """
     <div class="col-md-4"><input name="precio" placeholder="Precio" class="form-control" value="{{ piso.precio if piso else '' }}" required></div>
     <div class="col-md-12"><input name="enlace" placeholder="Enlace" class="form-control" value="{{ piso.enlace if piso else '' }}"></div>
     <div class="col-md-12"><textarea name="observaciones" class="form-control" placeholder="Observaciones">{{ piso.observaciones if piso else '' }}</textarea></div>
-    <div class="col-md-12">{% if piso %}
-<div class="d-flex gap-2">
-  <button type="submit" class="btn btn-primary">Guardar</button>
-  <form method="post" action="/delete/{{ piso.id }}" onsubmit="return confirm('¿Eliminar este piso? Esta acción no se puede deshacer.');">
-    <button type="submit" class="btn btn-danger">Eliminar</button>
-  </form>
-</div>
-{% else %}
-<button type="submit" class="btn btn-primary">Guardar</button>
-{% endif %}</div>
+    <div class="col-md-12"><button type="submit" class="btn btn-primary">Guardar</button></div>
   </form>
   <a href="/" class="btn btn-secondary mt-3">⬅ Volver al inicio</a>
 </body>
